@@ -98,12 +98,19 @@ export function ProductForm({ product, categories }: ProductFormProps) {
         throw new Error(errorData.error || "Erro ao salvar produto");
       }
 
-      setSuccess(true);
-      router.refresh();
+      // Aguarda a resposta ser processada para garantir que foi salvo
+      const result = await response.json();
       
-      if (!isEditing) {
-        router.push("/admin/products");
+      if (!result.success) {
+        throw new Error(result.error || "Erro ao salvar produto");
       }
+      
+      setSuccess(true);
+      
+      // Redireciona para a página de produtos após salvar com sucesso
+      // Pequeno delay para garantir que o estado foi atualizado
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      router.push("/admin/products");
     } catch (err: any) {
       setError(err.message || "Erro ao salvar produto");
     } finally {

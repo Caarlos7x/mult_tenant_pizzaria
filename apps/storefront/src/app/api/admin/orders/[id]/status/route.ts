@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma, OrderStatus } from "@pizzaria/db";
+import { prisma, OrderStatus, PaymentStatus } from "@pizzaria/db";
 import { getTenantId } from "@/lib/get-tenant";
 import { auth } from "@/lib/auth";
 import { z } from "zod";
@@ -82,12 +82,23 @@ export async function PATCH(
       );
     }
 
+    // Prepara os dados de atualização
+    const updateData: {
+      status: OrderStatus;
+      paymentStatus?: PaymentStatus;
+    } = {
+      status: validatedData.status as OrderStatus,
+    };
+
+    // Se o status for DELIVERED e o pagamento ainda estiver pendente, marca como pago
+    if (validatedData.status === "DELIVERED" && existingOrder.paymentStatus === "PENDING") {
+      updateData.paymentStatus = "PAID";
+    }
+
     // Atualiza o pedido
     const updatedOrder = await prisma.order.update({
       where: { id: params.id },
-      data: {
-        status: validatedData.status as OrderStatus,
-      },
+      data: updateData,
     });
 
     // Cria registro no histórico de status (apenas se mudou)

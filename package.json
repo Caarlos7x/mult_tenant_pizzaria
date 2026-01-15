@@ -10,17 +10,20 @@
     "db:generate": "turbo run db:generate",
     "db:migrate": "turbo run db:migrate",
     "db:studio": "turbo run db:studio",
-    "db:seed": "cd packages/db && pnpm db:seed"
+    "db:seed": "cd packages/db && pnpm db:seed",
+    "generate:products-excel": "node scripts/generate-products-excel.js",
+    "move:beers": "cd packages/db && tsx ../../scripts/move-beers-to-alcoholic.ts"
   },
   "devDependencies": {
     "@turbo/gen": "^1.10.12",
     "prettier": "^3.0.0",
+    "tsx": "^4.7.0",
     "turbo": "^1.10.12",
-    "typescript": "^5.2.2"
+    "typescript": "^5.2.2",
+    "xlsx": "^0.18.5"
   },
   "packageManager": "pnpm@8.10.0",
   "engines": {
     "node": ">=18"
   }
 }
-

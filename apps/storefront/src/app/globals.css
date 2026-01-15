@@ -6,6 +6,7 @@
   /* Base font size para calculo de rem (16px = 1rem) */
   html {
     font-size: 16px; /* Base para calculo de rem */
+    scroll-behavior: smooth;
   }
 
   :root {

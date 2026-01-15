@@ -1,6 +1,7 @@
 import { requireAdmin } from "@/lib/admin-auth";
 import { getTenant, getTenantId } from "@/lib/get-tenant";
 import { prisma } from "@pizzaria/db";
+import { formatDate } from "@/lib/utils";
 import { 
   Package, 
   ShoppingCart, 
@@ -35,7 +36,7 @@ export default async function AdminDashboard() {
     prisma.order.aggregate({
       where: {
         tenantId,
-        paymentStatus: "PAID",
+        status: "DELIVERED", // Considera apenas pedidos entregues como receita
       },
       _sum: {
         total: true,
@@ -60,6 +61,17 @@ export default async function AdminDashboard() {
   ]);
 
   const revenue = Number(totalRevenue._sum.total || 0);
+
+  // Tradução dos status para português
+  const statusLabels: Record<string, string> = {
+    PENDING_PAYMENT: "Aguardando Pagamento",
+    RECEIVED: "Recebido",
+    CONFIRMED: "Confirmado",
+    PREPARING: "Preparando",
+    OUT_FOR_DELIVERY: "Saiu para Entrega",
+    DELIVERED: "Entregue",
+    CANCELED: "Cancelado",
+  };
 
   const stats = [
     {
@@ -177,14 +189,20 @@ export default async function AdminDashboard() {
                             ? "bg-green-100 text-green-800"
                             : order.status === "PREPARING"
                             ? "bg-orange-100 text-orange-800"
+                            : order.status === "CANCELED"
+                            ? "bg-red-100 text-red-800"
+                            : order.status === "OUT_FOR_DELIVERY"
+                            ? "bg-indigo-100 text-indigo-800"
+                            : order.status === "CONFIRMED"
+                            ? "bg-purple-100 text-purple-800"
                             : "bg-blue-100 text-blue-800"
                         }`}
                       >
-                        {order.status}
+                        {statusLabels[order.status] || order.status}
                       </span>
                     </td>
                     <td className="py-3 px-4 text-sm text-gray-600">
-                      {new Date(order.createdAt).toLocaleDateString("pt-BR")}
+                      {formatDate(order.createdAt).split(",")[0]}
                     </td>
                   </tr>
                 ))}

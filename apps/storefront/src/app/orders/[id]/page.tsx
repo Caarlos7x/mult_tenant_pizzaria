@@ -5,7 +5,7 @@ import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { OrderStatusTimeline } from "@/components/orders/order-status-timeline";
 import { Button } from "@/components/ui/button";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatCEP } from "@/lib/utils";
 import Link from "next/link";
 import { ArrowLeft, Package, MapPin, CreditCard } from "lucide-react";
 
@@ -48,6 +48,51 @@ export default async function OrderPage({ params }: { params: { id: string } }) 
 
   if (!order) {
     notFound();
+  }
+
+  // Processa o endereço de entrega antes de renderizar para evitar problemas de hidratação
+  let deliveryAddressFormatted = null;
+  try {
+    const address = typeof order.deliveryAddress === "string" 
+      ? JSON.parse(order.deliveryAddress) 
+      : order.deliveryAddress;
+    
+    if (address && typeof address === "object") {
+      // Normaliza o CEP antes de formatar para garantir consistência
+      const rawZipCode = address.zipCode;
+      let formattedZipCode: string | null = null;
+      
+      if (rawZipCode) {
+        // Remove qualquer formatação existente e valida
+        const cepStr = String(rawZipCode).replace(/\D/g, "");
+        if (cepStr.length === 8) {
+          formattedZipCode = `${cepStr.slice(0, 5)}-${cepStr.slice(5)}`;
+        }
+      }
+      
+      // Constrói a string completa do endereço de forma determinística
+      const city = String(address.city || "").trim();
+      const state = String(address.state || "").trim();
+      const cityStateZip = formattedZipCode 
+        ? `${city} - ${state} ${formattedZipCode}`.trim()
+        : city && state 
+        ? `${city} - ${state}`.trim()
+        : city || state;
+      
+      deliveryAddressFormatted = {
+        street: String(address.street || "").trim(),
+        number: String(address.number || "").trim(),
+        complement: address.complement ? String(address.complement).trim() : null,
+        neighborhood: String(address.neighborhood || "").trim(),
+        city: city,
+        state: state,
+        cityStateZip: cityStateZip, // String completa já formatada e determinística
+        reference: address.reference ? String(address.reference).trim() : null,
+      };
+    }
+  } catch {
+    // Se houver erro, mantém como string
+    deliveryAddressFormatted = null;
   }
 
   return (
@@ -143,33 +188,25 @@ export default async function OrderPage({ params }: { params: { id: string } }) 
                 <h2 className="text-lg sm:text-xl font-bold text-gray-900">Endereço de Entrega</h2>
               </div>
               <div className="text-sm space-y-2 text-gray-700">
-                {(() => {
-                  try {
-                    const address = typeof order.deliveryAddress === "string" 
-                      ? JSON.parse(order.deliveryAddress) 
-                      : order.deliveryAddress;
-                    
-                    return (
-                      <>
-                        <p className="font-semibold text-gray-900">
-                          {address.street}, {address.number}
-                          {address.complement && ` - ${address.complement}`}
-                        </p>
-                        <p>{address.neighborhood}</p>
-                        <p>
-                          {address.city} - {address.state} {address.zipCode ? String(address.zipCode).replace(/(\d{5})(\d{3})/, "$1-$2") : ""}
-                        </p>
-                        {address.reference && (
-                          <p className="text-gray-600 mt-3 pt-3 border-t border-gray-200">
-                            <span className="font-medium">Referência:</span> {address.reference}
-                          </p>
-                        )}
-                      </>
-                    );
-                  } catch {
-                    return <p>{String(order.deliveryAddress)}</p>;
-                  }
-                })()}
+                {deliveryAddressFormatted ? (
+                  <>
+                    <p className="font-semibold text-gray-900">
+                      {deliveryAddressFormatted.street}, {deliveryAddressFormatted.number}
+                      {deliveryAddressFormatted.complement && ` - ${deliveryAddressFormatted.complement}`}
+                    </p>
+                    <p>{deliveryAddressFormatted.neighborhood}</p>
+                    <p>
+                      {deliveryAddressFormatted.cityStateZip}
+                    </p>
+                    {deliveryAddressFormatted.reference && (
+                      <p className="text-gray-600 mt-3 pt-3 border-t border-gray-200">
+                        <span className="font-medium">Referência:</span> {deliveryAddressFormatted.reference}
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <p>{String(order.deliveryAddress)}</p>
+                )}
               </div>
             </div>
           </div>

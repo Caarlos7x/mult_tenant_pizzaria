@@ -48,33 +48,46 @@ async function MenuContent({ tenantId }: { tenantId: string }) {
     },
   });
 
+  // Função para gerar um ID slug a partir do nome da categoria
+  const getCategorySlug = (name: string) => {
+    return name
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "") // Remove acentos
+      .replace(/[^a-z0-9]+/g, "-") // Substitui espaços e caracteres especiais por hífen
+      .replace(/^-+|-+$/g, ""); // Remove hífens no início e fim
+  };
+
   return (
     <div className="space-y-8 sm:space-y-12">
-      {categories.map((category) => (
-        <section key={category.id}>
-          <div className="mb-4 sm:mb-6 flex items-center gap-2 sm:gap-4">
-            {category.imageUrl && (
-              <img
-                src={category.imageUrl}
-                alt={category.name}
-                className="h-10 sm:h-12 w-10 sm:w-12 rounded"
-              />
-            )}
-            <h2 className="text-xl sm:text-2xl font-semibold">{category.name}</h2>
-          </div>
+      {categories.map((category) => {
+        const categorySlug = getCategorySlug(category.name);
+        return (
+          <section key={category.id} id={categorySlug} className="scroll-mt-24">
+            <div className="mb-4 sm:mb-6 flex items-center gap-2 sm:gap-4">
+              {category.imageUrl && (
+                <img
+                  src={category.imageUrl}
+                  alt={category.name}
+                  className="h-10 sm:h-12 w-10 sm:w-12 rounded"
+                />
+              )}
+              <h2 className="text-xl sm:text-2xl font-semibold">{category.name}</h2>
+            </div>
           {category.description && (
             <p className="mb-3 sm:mb-4 text-sm sm:text-base text-muted-foreground">
               {category.description}
             </p>
           )}
 
-          <div className="grid grid-cols-1 gap-6 sm:gap-8 md:grid-cols-2 lg:grid-cols-3">
-            {category.products.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
-        </section>
-      ))}
+            <div className="grid grid-cols-1 gap-6 sm:gap-8 md:grid-cols-2 lg:grid-cols-3">
+              {category.products.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+          </section>
+        );
+      })}
     </div>
   );
 }
@@ -136,7 +149,31 @@ export default async function MenuPage() {
           <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">
             Cardápio Completo
           </h1>
-          <p className="text-gray-600">Explore todas as nossas delícias</p>
+          <p className="text-gray-600 mb-6">Explore todas as nossas delícias</p>
+          
+          {/* Menu de Navegação de Categorias */}
+          {categories.length > 0 && (
+            <nav className="flex flex-wrap gap-2 sm:gap-3 pb-4 border-b border-gray-200">
+              {categories.map((category) => {
+                const categorySlug = category.name
+                  .toLowerCase()
+                  .normalize("NFD")
+                  .replace(/[\u0300-\u036f]/g, "")
+                  .replace(/[^a-z0-9]+/g, "-")
+                  .replace(/^-+|-+$/g, "");
+                
+                return (
+                  <a
+                    key={category.id}
+                    href={`#${categorySlug}`}
+                    className="px-3 sm:px-4 py-2 text-sm sm:text-base font-medium text-gray-700 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors duration-200"
+                  >
+                    {category.name}
+                  </a>
+                );
+              })}
+            </nav>
+          )}
         </div>
 
         <Suspense
