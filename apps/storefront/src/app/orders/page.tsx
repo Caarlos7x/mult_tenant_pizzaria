@@ -2,8 +2,11 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { getTenant } from "@/lib/get-tenant";
 import { prisma } from "@pizzaria/db";
+import { Header } from "@/components/header";
+import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 
 const statusColors: Record<string, string> = {
   PENDING_PAYMENT: "bg-yellow-100 text-yellow-800",
@@ -51,66 +54,83 @@ export default async function OrdersPage() {
   });
 
   return (
-    <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8 max-w-4xl overflow-x-hidden">
-      <div className="mb-6">
-        <Link href="/">
-          <Button variant="ghost" className="mb-4">
-            ← Voltar para o cardápio
-          </Button>
-        </Link>
-        <h1 className="text-2xl sm:text-3xl font-bold">Meus Pedidos</h1>
-      </div>
+    <div className="flex flex-col min-h-screen bg-gray-50">
+      <Header tenant={tenant} />
 
-      {orders.length === 0 ? (
-        <div className="bg-white rounded-lg shadow-md p-8 text-center">
-          <p className="text-gray-600 mb-4">Você ainda não fez nenhum pedido.</p>
-          <Link href="/menu">
-            <Button>Ver Cardápio</Button>
+      <main className="container mx-auto px-4 sm:px-6 py-8 sm:py-12 max-w-7xl flex-1">
+        <div className="mb-6 sm:mb-8">
+          <Link href="/">
+            <Button variant="ghost" className="mb-4 flex items-center gap-2">
+              <ArrowLeft className="h-4 w-4" />
+              Voltar para o cardápio
+            </Button>
           </Link>
+          <div>
+            <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">
+              Meus Pedidos
+            </h1>
+            <p className="text-gray-600">Acompanhe todos os seus pedidos</p>
+          </div>
         </div>
-      ) : (
-        <div className="space-y-4">
-          {orders.map((order) => (
-            <Link
-              key={order.id}
-              href={`/orders/${order.id}`}
-              className="block bg-white rounded-lg shadow-md p-4 sm:p-6 hover:shadow-lg transition"
-            >
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-lg font-bold">
-                      Pedido #{order.orderNumber}
-                    </h3>
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        statusColors[order.status] || "bg-gray-100 text-gray-800"
-                      }`}
-                    >
-                      {statusLabels[order.status] || order.status}
-                    </span>
+
+        {orders.length === 0 ? (
+          <div className="bg-white rounded-xl shadow-md border border-gray-200 p-12 text-center">
+            <div className="max-w-md mx-auto">
+              <div className="text-6xl mb-4">📦</div>
+              <p className="text-gray-600 mb-6 text-lg">
+                Você ainda não fez nenhum pedido.
+              </p>
+              <Link href="/menu">
+                <Button size="lg">Ver Cardápio</Button>
+              </Link>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {orders.map((order) => (
+              <Link
+                key={order.id}
+                href={`/orders/${order.id}`}
+                className="block bg-white rounded-xl shadow-md border border-gray-200 p-6 hover:shadow-xl hover:-translate-y-1 transition-all duration-300"
+              >
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2 flex-wrap">
+                      <h3 className="text-lg font-bold text-gray-900">
+                        Pedido #{order.orderNumber}
+                      </h3>
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                          statusColors[order.status] || "bg-gray-100 text-gray-800"
+                        }`}
+                      >
+                        {statusLabels[order.status] || order.status}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-600">
+                      {new Date(order.createdAt).toLocaleDateString("pt-BR", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </p>
                   </div>
-                  <p className="text-sm text-gray-600">
-                    {new Date(order.createdAt).toLocaleDateString("pt-BR", {
-                      day: "2-digit",
-                      month: "2-digit",
-                      year: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </p>
+                  <div className="text-left sm:text-right">
+                    <p className="text-2xl font-bold text-primary">
+                      R$ {Number(order.total).toFixed(2)}
+                    </p>
+                    <p className="text-sm text-gray-600 mt-1">Ver detalhes →</p>
+                  </div>
                 </div>
-                <div className="text-left sm:text-right">
-                  <p className="text-xl font-bold text-primary">
-                    R$ {Number(order.total).toFixed(2)}
-                  </p>
-                  <p className="text-sm text-gray-600">Ver detalhes →</p>
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
-      )}
+              </Link>
+            ))}
+          </div>
+        )}
+      </main>
+
+      <Footer />
     </div>
   );
 }
