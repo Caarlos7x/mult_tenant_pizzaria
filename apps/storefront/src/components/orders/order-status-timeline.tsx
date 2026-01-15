@@ -1,6 +1,7 @@
 "use client";
 
 import { Check, Clock } from "lucide-react";
+import { formatDate } from "@/lib/utils";
 import type { OrderStatus, OrderStatusHistory } from "@pizzaria/db";
 
 const statusLabels: Record<OrderStatus, string> = {
@@ -52,7 +53,7 @@ export function OrderStatusTimeline({ currentStatus, statusHistory }: OrderStatu
             <p className="font-medium text-primary">{statusLabels.PENDING_PAYMENT}</p>
             {historyItem && (
               <p className="text-xs text-muted-foreground">
-                {new Date(historyItem.createdAt).toLocaleString("pt-BR")}
+                {formatDate(historyItem.createdAt)}
               </p>
             )}
           </div>
@@ -101,11 +102,11 @@ export function OrderStatusTimeline({ currentStatus, statusHistory }: OrderStatu
               >
                 {statusLabels[status]}
               </p>
-              {historyItem && (
-                <p className="text-xs text-muted-foreground">
-                  {new Date(historyItem.createdAt).toLocaleString("pt-BR")}
-                </p>
-              )}
+            {historyItem && (
+              <p className="text-xs text-muted-foreground">
+                {formatDate(historyItem.createdAt)}
+              </p>
+            )}
             </div>
           </div>
         );

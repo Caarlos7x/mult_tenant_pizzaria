@@ -5,6 +5,7 @@ import { prisma } from "@pizzaria/db";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
+import { formatDate } from "@/lib/utils";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
@@ -108,13 +109,7 @@ export default async function OrdersPage() {
                       </span>
                     </div>
                     <p className="text-sm text-gray-600">
-                      {new Date(order.createdAt).toLocaleDateString("pt-BR", {
-                        day: "2-digit",
-                        month: "2-digit",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
+                      {formatDate(order.createdAt)}
                     </p>
                   </div>
                   <div className="text-left sm:text-right">
