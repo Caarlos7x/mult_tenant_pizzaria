@@ -50,15 +50,6 @@ export async function POST(request: NextRequest) {
         },
       });
     }
-      update: {},
-      create: {
-        tenantId,
-        name: "Bebidas Alcóolicas",
-        description: "Cervejas e outras bebidas alcóolicas",
-        sortOrder: categoriaBebidas.sortOrder + 1,
-        isActive: true,
-      },
-    });
 
     // Busca todos os produtos de cerveja na categoria "Bebidas"
     const produtosCerveja = await prisma.product.findMany({

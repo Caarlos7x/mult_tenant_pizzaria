@@ -4,9 +4,19 @@ import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { ProductCard } from "@/components/menu/product-card";
 import { ProductCardSkeleton } from "@/components/skeletons/product-card-skeleton";
+import { ScrollToTop } from "@/components/scroll-to-top";
+import { MenuPagination } from "@/components/menu/menu-pagination";
 import { Suspense } from "react";
 
-async function MenuContent({ tenantId }: { tenantId: string }) {
+const PRODUCTS_PER_PAGE = 12; // Número de produtos por página em cada categoria
+
+async function MenuContent({ 
+  tenantId, 
+  searchParams 
+}: { 
+  tenantId: string;
+  searchParams: Record<string, string | string[] | undefined>;
+}) {
   // Busca categorias com produtos
   const categories = await prisma.category.findMany({
     where: {
@@ -62,6 +72,19 @@ async function MenuContent({ tenantId }: { tenantId: string }) {
     <div className="space-y-8 sm:space-y-12">
       {categories.map((category) => {
         const categorySlug = getCategorySlug(category.name);
+        const pageParam = `page_${categorySlug}`;
+        const currentPage = parseInt(
+          (searchParams[pageParam] as string) || "1",
+          10
+        );
+        
+        // Paginação dos produtos da categoria
+        const totalProducts = category.products.length;
+        const totalPages = Math.ceil(totalProducts / PRODUCTS_PER_PAGE);
+        const startIndex = (currentPage - 1) * PRODUCTS_PER_PAGE;
+        const endIndex = startIndex + PRODUCTS_PER_PAGE;
+        const paginatedProducts = category.products.slice(startIndex, endIndex);
+
         return (
           <section key={category.id} id={categorySlug} className="scroll-mt-24">
             <div className="mb-4 sm:mb-6 flex items-center gap-2 sm:gap-4">
@@ -74,17 +97,38 @@ async function MenuContent({ tenantId }: { tenantId: string }) {
               )}
               <h2 className="text-xl sm:text-2xl font-semibold">{category.name}</h2>
             </div>
-          {category.description && (
-            <p className="mb-3 sm:mb-4 text-sm sm:text-base text-muted-foreground">
-              {category.description}
-            </p>
-          )}
+            {category.description && (
+              <p className="mb-3 sm:mb-4 text-sm sm:text-base text-muted-foreground">
+                {category.description}
+              </p>
+            )}
 
-            <div className="grid grid-cols-1 gap-6 sm:gap-8 md:grid-cols-2 lg:grid-cols-3">
-              {category.products.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
-            </div>
+            {paginatedProducts.length > 0 ? (
+              <>
+                <div className="grid grid-cols-1 gap-6 sm:gap-8 md:grid-cols-2 lg:grid-cols-3">
+                  {paginatedProducts.map((product) => (
+                    <ProductCard key={product.id} product={product} />
+                  ))}
+                </div>
+                {totalPages > 1 && (
+                  <div className="mt-6">
+                    <MenuPagination
+                      currentPage={currentPage}
+                      totalPages={totalPages}
+                      totalItems={totalProducts}
+                      itemsPerPage={PRODUCTS_PER_PAGE}
+                      categorySlug={categorySlug}
+                    />
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center">
+                <p className="text-gray-500 text-sm sm:text-base">
+                  Nenhum produto disponível nesta categoria no momento.
+                </p>
+              </div>
+            )}
           </section>
         );
       })}
@@ -92,7 +136,11 @@ async function MenuContent({ tenantId }: { tenantId: string }) {
   );
 }
 
-export default async function MenuPage() {
+interface MenuPageProps {
+  searchParams: Record<string, string | string[] | undefined>;
+}
+
+export default async function MenuPage({ searchParams }: MenuPageProps) {
   const tenant = await getTenant();
 
   if (!tenant) {
@@ -195,11 +243,12 @@ export default async function MenuPage() {
             </div>
           }
         >
-          <MenuContent tenantId={tenant.id} />
+          <MenuContent tenantId={tenant.id} searchParams={searchParams} />
         </Suspense>
       </main>
 
       <Footer />
+      <ScrollToTop />
     </div>
   );
 }

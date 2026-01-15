@@ -3,9 +3,11 @@ import { getTenantId } from "@/lib/get-tenant";
 import { prisma } from "@pizzaria/db";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Plus, Edit, Trash2, Upload } from "lucide-react";
+import { Plus, Edit, Upload } from "lucide-react";
+import { DeleteProductButton } from "@/components/admin/delete-product-button";
 import { CreateAlcoholicCategoryButton } from "@/components/admin/create-alcoholic-category-button";
 import { CreateCategoryButton } from "@/components/admin/create-category-button";
+import { MoveBeersButton } from "@/components/admin/move-beers-button";
 import { Beer, Cake } from "lucide-react";
 import { ProductsFilter } from "@/components/admin/products-filter";
 import { ProductsPagination } from "@/components/admin/products-pagination";
@@ -84,6 +86,10 @@ export default async function AdminProductsPage({
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
+          {/* Botão para mover cervejas para Bebidas Alcóolicas */}
+          {/* {categories.find((c) => c.name === "Bebidas") && (
+            <MoveBeersButton />
+          )} */}
           {/* Botões para criar categorias se não existirem */}
           {!categories.find((c) => c.name === "Bebidas Alcóolicas") && (
             <CreateCategoryButton
@@ -210,6 +216,10 @@ export default async function AdminProductsPage({
                           Editar
                         </Button>
                       </Link>
+                      <DeleteProductButton
+                        productId={product.id}
+                        productName={product.name}
+                      />
                     </div>
                   </td>
                 </tr>
