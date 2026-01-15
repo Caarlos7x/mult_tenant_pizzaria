@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { CartDrawer } from "@/components/cart/cart-drawer";
+import { MobileMenu } from "@/components/mobile-menu";
 import type { Tenant } from "@pizzaria/db";
 
 interface HeaderProps {
@@ -34,6 +35,7 @@ export async function Header({ tenant }: HeaderProps) {
           </h1>
         </Link>
         <nav className="flex items-center gap-1 sm:gap-2">
+          {/* Menu desktop - visível apenas em telas maiores */}
           <Link href="/menu">
             <Button
               variant="ghost"
@@ -71,6 +73,9 @@ export async function Header({ tenant }: HeaderProps) {
               </Button>
             </Link>
           )}
+          {/* Menu mobile - visível apenas em telas menores */}
+          <MobileMenu />
+          {/* Carrinho - visível em todas as telas */}
           <CartDrawer />
         </nav>
       </div>
