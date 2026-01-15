@@ -169,17 +169,7 @@ export default async function AccountPage() {
 
       {/* Botão de Sair */}
       <div className="mt-6">
-        <form
-          action={async () => {
-            "use server";
-            const { signOut } = await import("next-auth/react");
-            await signOut({ redirectTo: "/" });
-          }}
-        >
-          <Button type="submit" variant="outline" className="w-full sm:w-auto">
-            Sair da Conta
-          </Button>
-        </form>
+        <SignOutButton />
       </div>
     </div>
   );

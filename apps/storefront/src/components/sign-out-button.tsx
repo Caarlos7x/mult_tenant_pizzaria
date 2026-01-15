@@ -2,12 +2,17 @@
 
 import { signOut as nextAuthSignOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
-export function SignOutButton() {
+interface SignOutButtonProps {
+  className?: string;
+}
+
+export function SignOutButton({ className }: SignOutButtonProps) {
   return (
     <Button
       variant="outline"
-      className="w-full sm:w-auto"
+      className={cn("w-full sm:w-auto", className)}
       onClick={() => nextAuthSignOut({ redirectTo: "/" })}
     >
       Sair da Conta
