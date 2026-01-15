@@ -1,0 +1,467 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// MULTI-TENANT
+// ============================================
+
+model Tenant {
+  id          String   @id @default(cuid())
+  subdomain   String   @unique
+  domain      String?  @unique // domínio próprio opcional
+  name        String
+  slug        String   @unique
+  
+  // Branding
+  primaryColor    String   @default("#ef4444")
+  secondaryColor  String?  @default("#f97316")
+  logoUrl         String?
+  coverUrl        String?
+  font            String?  @default("Inter")
+  
+  // Configurações
+  isActive        Boolean  @default(true)
+  currency        String   @default("BRL")
+  timezone        String   @default("America/Sao_Paulo")
+  
+  // Relacionamentos
+  users           User[]
+  products        Product[]
+  orders          Order[]
+  deliveryZones   DeliveryZone[]
+  storeHours      StoreHours[]
+  promotions      Promotion[]
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([subdomain])
+  @@index([domain])
+  @@index([slug])
+}
+
+// ============================================
+// USUÁRIOS
+// ============================================
+
+enum UserRole {
+  ADMIN
+  ATTENDANT
+  DELIVERY
+  CUSTOMER
+}
+
+model User {
+  id          String   @id @default(cuid())
+  tenantId    String
+  email       String
+  name        String?
+  phone       String?
+  role        UserRole @default(CUSTOMER)
+  
+  // Auth
+  password    String?  // Senha hasheada (bcrypt)
+  authId      String?  @unique // ID do provedor de auth externo (OAuth)
+  
+  // Relacionamentos
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  orders      Order[]
+  addresses   Address[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@index([authId])
+  @@index([email])
+}
+
+// ============================================
+// PRODUTOS
+// ============================================
+
+enum ProductType {
+  PIZZA
+  DRINK
+  COMBO
+  DESSERT
+  OTHER
+}
+
+enum ProductStatus {
+  ACTIVE
+  INACTIVE
+  OUT_OF_STOCK
+}
+
+model Product {
+  id          String        @id @default(cuid())
+  tenantId    String
+  name        String
+  description String?
+  type        ProductType
+  status      ProductStatus @default(ACTIVE)
+  
+  // Imagens
+  imageUrl    String?
+  images      String[]      @default([])
+  
+  // Categorias
+  categoryId  String?
+  category    Category?     @relation(fields: [categoryId], references: [id])
+  
+  // Preço base (pode variar por variant)
+  basePrice   Decimal       @db.Decimal(10, 2)
+  
+  // Ordem de exibição
+  sortOrder   Int           @default(0)
+  
+  // Relacionamentos
+  tenant      Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  variants    ProductVariant[]
+  modifiers   ProductModifier[]
+  orderItems  OrderItem[]
+  
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([tenantId])
+  @@index([tenantId, categoryId])
+  @@index([tenantId, status])
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  tenantId    String
+  name        String
+  description String?
+  imageUrl    String?
+  sortOrder   Int       @default(0)
+  isActive    Boolean   @default(true)
+  
+  products    Product[]
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+model ProductVariant {
+  id          String   @id @default(cuid())
+  productId   String
+  name        String   // Ex: "Pequena", "Média", "Grande", "Borda Recheada"
+  price       Decimal  @db.Decimal(10, 2)
+  sortOrder   Int      @default(0)
+  isDefault   Boolean  @default(false)
+  
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  orderItems  OrderItemVariant[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([productId])
+}
+
+model Modifier {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String   // Ex: "Adicionais", "Bebida", "Acompanhamento"
+  description String?
+  isRequired  Boolean  @default(false)
+  minOptions  Int      @default(0)
+  maxOptions  Int      @default(1)
+  sortOrder   Int      @default(0)
+  
+  options     ModifierOption[]
+  products    ProductModifier[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId])
+}
+
+model ModifierOption {
+  id          String   @id @default(cuid())
+  modifierId  String
+  name        String
+  price       Decimal  @db.Decimal(10, 2)
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  
+  modifier    Modifier @relation(fields: [modifierId], references: [id], onDelete: Cascade)
+  orderItems  OrderItemModifier[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([modifierId])
+}
+
+model ProductModifier {
+  id          String   @id @default(cuid())
+  productId   String
+  modifierId  String
+  
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  modifier    Modifier @relation(fields: [modifierId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, modifierId])
+  @@index([productId])
+  @@index([modifierId])
+}
+
+// ============================================
+// PEDIDOS
+// ============================================
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  RECEIVED
+  CONFIRMED
+  PREPARING
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELED
+}
+
+enum PaymentMethod {
+  ONLINE
+  CASH_ON_DELIVERY
+  PIX
+  CREDIT_CARD
+  DEBIT_CARD
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+model Order {
+  id              String        @id @default(cuid())
+  tenantId        String
+  orderNumber     String        @unique // Número sequencial por tenant
+  customerId      String?
+  customerName    String
+  customerPhone   String
+  customerEmail   String?
+  
+  // Status
+  status          OrderStatus   @default(PENDING_PAYMENT)
+  estimatedTime   Int?          // minutos
+  
+  // Endereço
+  addressId       String?
+  address         Address?      @relation(fields: [addressId], references: [id])
+  deliveryAddress String        // JSON ou texto completo
+  deliveryZoneId  String?
+  deliveryZone    DeliveryZone? @relation(fields: [deliveryZoneId], references: [id])
+  
+  // Valores
+  subtotal        Decimal       @db.Decimal(10, 2)
+  deliveryFee     Decimal       @db.Decimal(10, 2) @default(0)
+  discount        Decimal       @db.Decimal(10, 2) @default(0)
+  total           Decimal       @db.Decimal(10, 2)
+  
+  // Pagamento
+  paymentMethod   PaymentMethod
+  paymentStatus   PaymentStatus @default(PENDING)
+  paymentId       String?       // ID do gateway
+  
+  // Observações
+  notes           String?
+  
+  // Relacionamentos
+  tenant          Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer        User?         @relation(fields: [customerId], references: [id])
+  items           OrderItem[]
+  statusHistory   OrderStatusHistory[]
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([tenantId, createdAt])
+  @@index([orderNumber])
+  @@index([customerId])
+}
+
+model OrderItem {
+  id              String   @id @default(cuid())
+  orderId         String
+  productId       String
+  productName     String   // snapshot do nome no momento do pedido
+  quantity        Int      @default(1)
+  unitPrice       Decimal  @db.Decimal(10, 2)
+  totalPrice      Decimal  @db.Decimal(10, 2)
+  
+  // Pizza meio-a-meio
+  compositionType String?  // "HALF_HALF" | "FULL"
+  composition     Json?    // { left: { flavor: "...", extras: [...] }, right: { ... } }
+  
+  // Observações do item
+  notes           String?
+  
+  // Relacionamentos
+  order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product         Product  @relation(fields: [productId], references: [id])
+  variants        OrderItemVariant[]
+  modifiers       OrderItemModifier[]
+  
+  createdAt       DateTime @default(now())
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+model OrderItemVariant {
+  id          String        @id @default(cuid())
+  orderItemId String
+  variantId   String
+  variantName String        // snapshot
+  price       Decimal       @db.Decimal(10, 2)
+  
+  orderItem   OrderItem     @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  variant     ProductVariant @relation(fields: [variantId], references: [id])
+
+  @@index([orderItemId])
+  @@index([variantId])
+}
+
+model OrderItemModifier {
+  id          String        @id @default(cuid())
+  orderItemId String
+  optionId    String
+  optionName  String        // snapshot
+  price       Decimal       @db.Decimal(10, 2)
+  
+  orderItem   OrderItem     @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  option      ModifierOption @relation(fields: [optionId], references: [id])
+
+  @@index([orderItemId])
+  @@index([optionId])
+}
+
+model OrderStatusHistory {
+  id          String      @id @default(cuid())
+  orderId     String
+  status      OrderStatus
+  notes       String?
+  
+  order       Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime    @default(now())
+
+  @@index([orderId])
+}
+
+// ============================================
+// ENDEREÇOS E ENTREGA
+// ============================================
+
+model Address {
+  id          String   @id @default(cuid())
+  userId      String?
+  label       String?  // "Casa", "Trabalho", etc.
+  street      String
+  number      String
+  complement  String?
+  neighborhood String
+  city        String
+  state       String
+  zipCode     String
+  reference   String?
+  latitude    Float?
+  longitude   Float?
+  
+  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders      Order[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model DeliveryZone {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  description String?
+  fee         Decimal  @db.Decimal(10, 2)
+  minOrder    Decimal? @db.Decimal(10, 2) // valor mínimo do pedido
+  estimatedTime Int?   // minutos
+  isActive    Boolean  @default(true)
+  
+  // Geometria (pode usar PostGIS ou JSON simples)
+  coordinates Json?    // GeoJSON ou array de coordenadas
+  
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  orders      Order[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId])
+}
+
+// ============================================
+// HORÁRIOS E CONFIGURAÇÕES
+// ============================================
+
+model StoreHours {
+  id          String   @id @default(cuid())
+  tenantId    String
+  dayOfWeek   Int      // 0 = Domingo, 6 = Sábado
+  openTime    String   // "18:00"
+  closeTime   String   // "23:00"
+  isOpen      Boolean  @default(true)
+  
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, dayOfWeek])
+  @@index([tenantId])
+}
+
+model Promotion {
+  id          String   @id @default(cuid())
+  tenantId    String
+  code        String
+  name        String
+  description String?
+  type        String   // "PERCENTAGE" | "FIXED" | "FREE_DELIVERY"
+  value       Decimal  @db.Decimal(10, 2)
+  minOrder    Decimal? @db.Decimal(10, 2)
+  maxUses     Int?
+  usedCount   Int      @default(0)
+  startsAt    DateTime?
+  endsAt      DateTime?
+  isActive    Boolean  @default(true)
+  
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([code])
+}
+
