@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 interface OrderStatusUpdaterProps {
   orderId: string;
@@ -24,6 +25,7 @@ export function OrderStatusUpdater({
   currentStatus,
 }: OrderStatusUpdaterProps) {
   const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -50,13 +52,27 @@ export function OrderStatusUpdater({
       }
 
       setSuccess(true);
-      router.refresh();
+      
+      // Mostra toast de sucesso
+      const statusLabel = statusOptions.find((s) => s.value === newStatus)?.label || newStatus;
+      toast.success("Status atualizado", {
+        description: `Status do pedido alterado para "${statusLabel}"`,
+      });
+      
+      // Revalida a página de forma não-bloqueante
+      startTransition(() => {
+        router.refresh();
+      });
 
       setTimeout(() => {
         setSuccess(false);
       }, 3000);
     } catch (err: any) {
-      setError(err.message || "Erro ao atualizar status");
+      const errorMessage = err.message || "Erro ao atualizar status";
+      setError(errorMessage);
+      toast.error("Erro ao atualizar status", {
+        description: errorMessage,
+      });
     } finally {
       setIsLoading(false);
     }

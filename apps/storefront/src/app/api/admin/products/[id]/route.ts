@@ -17,7 +17,7 @@ const updateProductSchema = z.object({
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -39,10 +39,12 @@ export async function PATCH(
       );
     }
 
+    const { id } = await params;
+
     // Verifica se o produto existe e pertence ao tenant
     const existingProduct = await prisma.product.findFirst({
       where: {
-        id: params.id,
+        id,
         tenantId,
       },
     });
@@ -58,7 +60,7 @@ export async function PATCH(
     const validatedData = updateProductSchema.parse(body);
 
     const product = await prisma.product.update({
-      where: { id: params.id },
+      where: { id },
       data: validatedData,
     });
 
@@ -81,7 +83,7 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -103,10 +105,12 @@ export async function DELETE(
       );
     }
 
+    const { id } = await params;
+
     // Verifica se o produto existe e pertence ao tenant
     const existingProduct = await prisma.product.findFirst({
       where: {
-        id: params.id,
+        id,
         tenantId,
       },
     });
@@ -118,15 +122,79 @@ export async function DELETE(
       );
     }
 
-    await prisma.product.delete({
-      where: { id: params.id },
+    // Verifica se o produto está sendo usado em pedidos
+    const orderItemsCount = await prisma.orderItem.count({
+      where: {
+        productId: id,
+      },
     });
 
-    return NextResponse.json({ success: true });
-  } catch (error) {
+    // Deleta todos os OrderItems associados ao produto primeiro (exclusão em cascata)
+    if (orderItemsCount > 0) {
+      // Deleta os OrderItemVariants primeiro (se houver)
+      const orderItems = await prisma.orderItem.findMany({
+        where: { productId: id },
+        select: { id: true },
+      });
+
+      const orderItemIds = orderItems.map((item) => item.id);
+
+      if (orderItemIds.length > 0) {
+        // Deleta OrderItemVariants
+        await prisma.orderItemVariant.deleteMany({
+          where: {
+            orderItemId: {
+              in: orderItemIds,
+            },
+          },
+        });
+
+        // Deleta OrderItemModifiers
+        await prisma.orderItemModifier.deleteMany({
+          where: {
+            orderItemId: {
+              in: orderItemIds,
+            },
+          },
+        });
+
+        // Deleta os OrderItems
+        await prisma.orderItem.deleteMany({
+          where: {
+            productId: id,
+          },
+        });
+      }
+    }
+
+    // Agora pode deletar o produto normalmente
+    await prisma.product.delete({
+      where: { id },
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: orderItemsCount > 0
+        ? `Produto deletado com sucesso. ${orderItemsCount} item(ns) de pedido(s) também foram removido(s).`
+        : "Produto deletado com sucesso",
+      action: "deleted",
+      deletedOrderItems: orderItemsCount,
+    });
+  } catch (error: any) {
     console.error("Erro ao deletar produto:", error);
+    
+    // Trata erros de foreign key constraint de forma mais amigável
+    if (error.code === "P2003" || error.message?.includes("Foreign key constraint")) {
+      return NextResponse.json(
+        {
+          error: "Erro ao deletar produto. Verifique se há dependências que precisam ser removidas primeiro.",
+        },
+        { status: 400 }
+      );
+    }
+
     return NextResponse.json(
-      { error: "Erro ao deletar produto" },
+      { error: error.message || "Erro ao deletar produto" },
       { status: 500 }
     );
   }

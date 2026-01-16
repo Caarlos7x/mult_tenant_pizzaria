@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCart } from "@/hooks/use-cart";
 import { Button } from "@/components/ui/button";
 import { CheckoutForm } from "@/components/checkout/checkout-form";
+import { toast } from "sonner";
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -39,14 +40,21 @@ export default function CheckoutPage() {
       const result = await response.json();
 
       if (result.success) {
+        toast.success("Pedido criado com sucesso!", {
+          description: `Pedido #${result.order.orderNumber} foi registrado`,
+        });
         clear();
         router.push(`/orders/${result.order.id}`);
       } else {
-        alert("Erro ao criar pedido: " + result.error);
+        toast.error("Erro ao criar pedido", {
+          description: result.error || "Ocorreu um erro ao processar o pedido",
+        });
       }
     } catch (error) {
       console.error("Erro:", error);
-      alert("Erro ao processar pedido");
+      toast.error("Erro ao processar pedido", {
+        description: "Tente novamente ou entre em contato com o suporte",
+      });
     } finally {
       setIsSubmitting(false);
     }

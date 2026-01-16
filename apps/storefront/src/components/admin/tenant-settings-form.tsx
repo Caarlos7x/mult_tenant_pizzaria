@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { toast } from "sonner";
 import type { Tenant } from "@pizzaria/db";
 
 const tenantSchema = z.object({
@@ -27,6 +28,7 @@ interface TenantSettingsFormProps {
 
 export function TenantSettingsForm({ tenant }: TenantSettingsFormProps) {
   const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -74,13 +76,26 @@ export function TenantSettingsForm({ tenant }: TenantSettingsFormProps) {
       }
 
       setSuccess(true);
-      router.refresh();
+      
+      // Mostra toast de sucesso
+      toast.success("Configurações atualizadas", {
+        description: "As alterações foram salvas com sucesso",
+      });
+      
+      // Revalida a página de forma não-bloqueante
+      startTransition(() => {
+        router.refresh();
+      });
 
       setTimeout(() => {
         setSuccess(false);
       }, 3000);
     } catch (err: any) {
-      setError(err.message || "Erro ao atualizar configurações");
+      const errorMessage = err.message || "Erro ao atualizar configurações";
+      setError(errorMessage);
+      toast.error("Erro ao atualizar configurações", {
+        description: errorMessage,
+      });
     } finally {
       setIsLoading(false);
     }

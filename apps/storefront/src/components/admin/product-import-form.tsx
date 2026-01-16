@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Modal } from "@/components/ui/modal";
 import { Upload, Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { toast } from "sonner";
 import type { Category } from "@pizzaria/db";
 
 interface ProductImportFormProps {
@@ -16,11 +17,13 @@ interface ProductImportFormProps {
 
 export function ProductImportForm({ categories }: ProductImportFormProps) {
   const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   const [file, setFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<{
     success: boolean;
     imported: number;
+    total: number;
     errors: string[];
   } | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -35,7 +38,9 @@ export function ProductImportForm({ categories }: ProductImportFormProps) {
         .toLowerCase();
       
       if (!validExtensions.includes(fileExtension)) {
-        alert("Por favor, selecione um arquivo Excel (.xlsx ou .xls)");
+        toast.error("Formato inválido", {
+          description: "Por favor, selecione um arquivo Excel (.xlsx ou .xls)",
+        });
         return;
       }
       
@@ -48,7 +53,9 @@ export function ProductImportForm({ categories }: ProductImportFormProps) {
     e.preventDefault();
     
     if (!file) {
-      alert("Por favor, selecione um arquivo");
+      toast.error("Arquivo não selecionado", {
+        description: "Por favor, selecione um arquivo Excel para importar",
+      });
       return;
     }
 
@@ -73,16 +80,31 @@ export function ProductImportForm({ categories }: ProductImportFormProps) {
       setResult({
         success: true,
         imported: data.imported || 0,
+        total: data.total || 0,
         errors: data.errors || [],
+      });
+
+      // Mostra toast de sucesso
+      toast.success("Importação concluída!", {
+        description: `${data.imported || 0} de ${data.total || 0} produtos importados com sucesso`,
       });
 
       // Abre o modal de sucesso
       setIsModalOpen(true);
+      
+      // Revalida a página de forma não-bloqueante
+      startTransition(() => {
+        router.refresh();
+      });
     } catch (error: any) {
       setResult({
         success: false,
         imported: 0,
+        total: 0,
         errors: [error.message || "Erro desconhecido"],
+      });
+      toast.error("Erro ao importar produtos", {
+        description: error.message || "Ocorreu um erro ao processar o arquivo",
       });
       setIsModalOpen(true);
     } finally {

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -18,8 +18,12 @@ type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Verifica se há um parâmetro de redirecionamento na URL
+  const redirectTo = searchParams.get("redirect");
 
   const {
     register,
@@ -43,7 +47,34 @@ export default function LoginPage() {
       if (result?.error) {
         setError("Email ou senha inválidos");
       } else if (result?.ok) {
-        router.push("/account");
+        // Aguarda um momento para a sessão ser atualizada
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        
+        // Busca a sessão atualizada para verificar o role
+        try {
+          const sessionResponse = await fetch("/api/auth/session", {
+            cache: "no-store",
+          });
+          const session = await sessionResponse.json();
+          
+          // Redireciona baseado no role do usuário
+          const userRole = session?.user?.role;
+          
+          // Se houver um redirect na URL e o usuário for ADMIN, usa o redirect
+          if (redirectTo && (userRole === "ADMIN" || userRole === "ATTENDANT")) {
+            router.push(redirectTo);
+          } else if (userRole === "ADMIN" || userRole === "ATTENDANT") {
+            router.push("/admin");
+          } else if (redirectTo) {
+            router.push(redirectTo);
+          } else {
+            router.push("/account");
+          }
+        } catch (err) {
+          // Em caso de erro ao buscar sessão, redireciona para account por padrão
+          router.push("/account");
+        }
+        
         router.refresh();
       }
     } catch (err) {

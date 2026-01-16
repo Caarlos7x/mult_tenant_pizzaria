@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Filter } from "lucide-react";
@@ -12,21 +13,30 @@ interface ProductsFilterProps {
 export function ProductsFilter({ categories }: ProductsFilterProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const selectedCategory = searchParams.get("category") || "all";
+  const [isPending, startTransition] = useTransition();
+  const [selectedCategory, setSelectedCategory] = useState(
+    searchParams.get("category") || "all"
+  );
 
   const handleCategoryChange = (categoryId: string) => {
-    const params = new URLSearchParams(searchParams.toString());
-    
-    if (categoryId === "all") {
-      params.delete("category");
-    } else {
-      params.set("category", categoryId);
-    }
-    
-    // Reset para página 1 ao mudar categoria
-    params.delete("page");
-    
-    router.push(`/admin/products?${params.toString()}`);
+    // Atualiza o estado local imediatamente (otimista)
+    setSelectedCategory(categoryId);
+
+    // Atualiza a URL de forma não-bloqueante
+    startTransition(() => {
+      const params = new URLSearchParams(searchParams.toString());
+      
+      if (categoryId === "all") {
+        params.delete("category");
+      } else {
+        params.set("category", categoryId);
+      }
+      
+      // Reset para página 1 ao mudar categoria
+      params.delete("page");
+      
+      router.push(`/admin/products?${params.toString()}`);
+    });
   };
 
   return (
@@ -40,6 +50,7 @@ export function ProductsFilter({ categories }: ProductsFilterProps) {
           variant={selectedCategory === "all" ? "default" : "outline"}
           size="sm"
           onClick={() => handleCategoryChange("all")}
+          disabled={isPending}
           className="text-sm"
         >
           Todas
@@ -50,6 +61,7 @@ export function ProductsFilter({ categories }: ProductsFilterProps) {
             variant={selectedCategory === category.id ? "default" : "outline"}
             size="sm"
             onClick={() => handleCategoryChange(category.id)}
+            disabled={isPending}
             className="text-sm"
           >
             {category.name}

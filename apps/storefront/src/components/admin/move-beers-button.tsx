@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Beer } from "lucide-react";
+import { Beer, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 export function MoveBeersButton() {
   const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   const [isLoading, setIsLoading] = useState(false);
 
   const handleMove = async () => {
@@ -26,14 +28,18 @@ export function MoveBeersButton() {
         throw new Error(data.error || "Erro ao mover cervejas");
       }
 
-      alert(data.message || "Cervejas movidas com sucesso!");
-      
-      // Recarrega a página após 1 segundo
-      setTimeout(() => {
+      // Usa startTransition para revalidação não-bloqueante
+      startTransition(() => {
         router.refresh();
-      }, 1000);
+      });
+      
+      toast.success(data.message || "Cervejas movidas com sucesso!", {
+        description: `${data.movedCount || 0} cerveja(s) movida(s) para a categoria 'Bebidas Alcóolicas'`,
+      });
     } catch (error: any) {
-      alert(error.message || "Erro ao mover cervejas");
+      toast.error("Erro ao mover cervejas", {
+        description: error.message || "Ocorreu um erro ao processar a solicitação",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -42,12 +48,16 @@ export function MoveBeersButton() {
   return (
     <Button
       onClick={handleMove}
-      disabled={isLoading}
+      disabled={isLoading || isPending}
       variant="outline"
       size="sm"
       className="gap-2"
     >
-      <Beer className="h-4 w-4" />
+      {isLoading ? (
+        <Loader2 className="h-4 w-4 animate-spin" />
+      ) : (
+        <Beer className="h-4 w-4" />
+      )}
       {isLoading ? "Movendo..." : "Mover Cervejas"}
     </Button>
   );

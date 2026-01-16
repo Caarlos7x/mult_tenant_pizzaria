@@ -1,5 +1,6 @@
 "use client";
 
+import { useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -19,20 +20,24 @@ export function ProductsPagination({
 }: ProductsPaginationProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [isPending, startTransition] = useTransition();
 
   const handlePageChange = (page: number) => {
-    const params = new URLSearchParams(searchParams.toString());
-    
-    if (page === 1) {
-      params.delete("page");
-    } else {
-      params.set("page", page.toString());
-    }
-    
-    router.push(`/admin/products?${params.toString()}`);
-    
-    // Scroll para o topo
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    // Atualiza a URL de forma não-bloqueante
+    startTransition(() => {
+      const params = new URLSearchParams(searchParams.toString());
+      
+      if (page === 1) {
+        params.delete("page");
+      } else {
+        params.set("page", page.toString());
+      }
+      
+      router.push(`/admin/products?${params.toString()}`);
+      
+      // Scroll para o topo
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
   };
 
   const startItem = (currentPage - 1) * itemsPerPage + 1;
@@ -53,7 +58,7 @@ export function ProductsPagination({
           variant="outline"
           size="sm"
           onClick={() => handlePageChange(currentPage - 1)}
-          disabled={currentPage === 1}
+          disabled={currentPage === 1 || isPending}
           className="gap-1"
         >
           <ChevronLeft className="h-4 w-4" />
@@ -74,6 +79,7 @@ export function ProductsPagination({
                   variant={page === currentPage ? "default" : "outline"}
                   size="sm"
                   onClick={() => handlePageChange(page)}
+                  disabled={isPending}
                   className="min-w-[2.5rem]"
                 >
                   {page}
@@ -97,7 +103,7 @@ export function ProductsPagination({
           variant="outline"
           size="sm"
           onClick={() => handlePageChange(currentPage + 1)}
-          disabled={currentPage === totalPages}
+          disabled={currentPage === totalPages || isPending}
           className="gap-1"
         >
           Próxima

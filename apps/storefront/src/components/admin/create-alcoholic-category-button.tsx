@@ -1,10 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Beer } from "lucide-react";
+import { toast } from "sonner";
 
 export function CreateAlcoholicCategoryButton() {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   const [isLoading, setIsLoading] = useState(false);
 
   const handleCreate = async () => {
@@ -20,14 +24,18 @@ export function CreateAlcoholicCategoryButton() {
         throw new Error(data.error || "Erro ao criar categoria");
       }
 
-      alert(data.message || "Categoria criada com sucesso!");
+      toast.success(data.message || "Categoria criada com sucesso!", {
+        description: "A categoria 'Bebidas Alcóolicas' foi adicionada ao sistema",
+      });
       
-      // Recarrega a página após 1 segundo
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
+      // Revalida a página de forma não-bloqueante
+      startTransition(() => {
+        router.refresh();
+      });
     } catch (error: any) {
-      alert(error.message || "Erro ao criar categoria");
+      toast.error("Erro ao criar categoria", {
+        description: error.message || "Ocorreu um erro ao processar a solicitação",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -36,7 +44,7 @@ export function CreateAlcoholicCategoryButton() {
   return (
     <Button
       onClick={handleCreate}
-      disabled={isLoading}
+      disabled={isLoading || isPending}
       variant="outline"
       className="gap-2"
     >

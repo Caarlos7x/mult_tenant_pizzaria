@@ -90,6 +90,13 @@ export const authOptions: NextAuthConfig = {
       }
       return token;
     },
+    async redirect({ url, baseUrl }) {
+      // Permite redirecionamento para URLs relativas
+      if (url.startsWith("/")) return `${baseUrl}${url}`;
+      // Permite redirecionamento para URLs do mesmo domínio
+      if (new URL(url).origin === baseUrl) return url;
+      return baseUrl;
+    },
     async session({ session, token }) {
       try {
         if (token && session) {

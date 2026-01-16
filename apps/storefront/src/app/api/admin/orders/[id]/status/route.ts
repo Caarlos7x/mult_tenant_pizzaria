@@ -18,7 +18,7 @@ const updateStatusSchema = z.object({
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -40,10 +40,12 @@ export async function PATCH(
       );
     }
 
+    const { id } = await params;
+
     // Verifica se o pedido existe e pertence ao tenant
     const existingOrder = await prisma.order.findFirst({
       where: {
-        id: params.id,
+        id,
         tenantId,
       },
     });
@@ -97,7 +99,7 @@ export async function PATCH(
 
     // Atualiza o pedido
     const updatedOrder = await prisma.order.update({
-      where: { id: params.id },
+      where: { id },
       data: updateData,
     });
 
@@ -105,7 +107,7 @@ export async function PATCH(
     if (validatedData.status !== existingOrder.status) {
       await prisma.orderStatusHistory.create({
         data: {
-          orderId: params.id,
+          orderId: id,
           status: validatedData.status as OrderStatus,
           notes: `Status alterado por ${(session.user as any)?.name || "Administrador"}`,
         },

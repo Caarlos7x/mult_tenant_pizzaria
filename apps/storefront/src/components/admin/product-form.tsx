@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { toast } from "sonner";
 import type { Product, Category } from "@pizzaria/db";
 
 const productSchema = z.object({
@@ -37,6 +38,7 @@ interface ProductFormProps {
 
 export function ProductForm({ product, categories }: ProductFormProps) {
   const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -107,12 +109,25 @@ export function ProductForm({ product, categories }: ProductFormProps) {
       
       setSuccess(true);
       
+      // Mostra toast de sucesso
+      toast.success(
+        isEditing ? "Produto atualizado com sucesso!" : "Produto criado com sucesso!",
+        {
+          description: `O produto "${data.name}" foi ${isEditing ? "atualizado" : "adicionado"} ao sistema`,
+        }
+      );
+      
       // Redireciona para a página de produtos após salvar com sucesso
-      // Pequeno delay para garantir que o estado foi atualizado
-      await new Promise((resolve) => setTimeout(resolve, 300));
-      router.push("/admin/products");
+      // Usa startTransition para navegação não-bloqueante
+      startTransition(() => {
+        router.push("/admin/products");
+      });
     } catch (err: any) {
-      setError(err.message || "Erro ao salvar produto");
+      const errorMessage = err.message || "Erro ao salvar produto";
+      setError(errorMessage);
+      toast.error("Erro ao salvar produto", {
+        description: errorMessage,
+      });
     } finally {
       setIsLoading(false);
     }
